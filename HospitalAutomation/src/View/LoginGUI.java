@@ -1,5 +1,5 @@
 package View;
-//Java Dersleri #119 - Java ile Hastane Otomasyonu Yapımı | 1 21:15
+//Java Dersleri #120
 
 import java.awt.BorderLayout;
 import java.awt.EventQueue;
