@@ -6,16 +6,29 @@ import java.awt.EventQueue;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
+import javax.swing.event.TableModelEvent;
+import javax.swing.event.TableModelListener;
+import javax.swing.table.DefaultTableModel;
 
 import Model.Bashekim;
 
 import java.awt.Color;
 import javax.swing.JLabel;
 import java.awt.Font;
+import java.sql.SQLException;
+
 import javax.swing.JButton;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextField;
 import javax.swing.JPasswordField;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import java.awt.event.ActionListener;
+import java.awt.event.ActionEvent;
+
+import Helper.Helper;
 
 public class BashekimGUI extends JFrame {
 
@@ -25,6 +38,9 @@ public class BashekimGUI extends JFrame {
 	private JTextField fld_dTcno;
 	private JPasswordField fld_dPass;
 	private JTextField fld_doctorID;
+	private JTable table_doctor;
+	private DefaultTableModel doctorModel = null;
+	private Object[] doctorData = null;
 
 	/**
 	 * Launch the application.
@@ -44,8 +60,26 @@ public class BashekimGUI extends JFrame {
 
 	/**
 	 * Create the frame.
+	 * @throws SQLException 
 	 */
-	public BashekimGUI(Bashekim bashekim) {
+	public BashekimGUI(Bashekim bashekim) throws SQLException {
+		
+		doctorModel = new DefaultTableModel();
+		Object[] colDoctorName = new Object[4];
+		colDoctorName[0] = "ID";
+		colDoctorName[1] = "Name Surname";
+		colDoctorName[2] = "ID Number";
+		colDoctorName[3] = "Password";
+		doctorModel.setColumnIdentifiers(colDoctorName);
+		doctorData = new Object[4];
+		for(int i=0; i < bashekim.getDoctorList().size(); i++) {
+			doctorData[0] = bashekim.getDoctorList().get(i).getId();
+			doctorData[1] = bashekim.getDoctorList().get(i).getName();
+			doctorData[2] = bashekim.getDoctorList().get(i).getNumber();
+			doctorData[3] = bashekim.getDoctorList().get(i).getPassword();
+			doctorModel.addRow(doctorData);
+		}
+			
 		setTitle("Hospital Management System");
 		setResizable(false);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -106,6 +140,26 @@ public class BashekimGUI extends JFrame {
 		w_doctor.add(fld_dPass);
 		
 		JButton btn_addDoctor = new JButton("Add Doctor");
+		btn_addDoctor.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				if(fld_dName.getText().length() == 0 || fld_dPass.getText().length() == 0 || fld_dPass.getText().length() == 0) {
+					Helper.showMsg("fill");
+				}else {
+					try {
+						boolean control = bashekim.addDoctor(fld_dTcno.getText(), fld_dPass.getText(), fld_dName.getText());
+						if(control) {
+							Helper.showMsg("success");
+							fld_dName.setText(null);
+							fld_dPass.setText(null);
+							fld_dTcno.setText(null);
+							updateDoctorModel();
+						}
+					} catch (SQLException e1) {
+						e1.printStackTrace();
+					}
+				}
+			}
+		});
 		btn_addDoctor.setBounds(497, 209, 212, 23);
 		w_doctor.add(btn_addDoctor);
 		
@@ -121,7 +175,80 @@ public class BashekimGUI extends JFrame {
 		w_doctor.add(label_3);
 		
 		JButton btn_delDoctor = new JButton("Delete");
+		btn_delDoctor.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				if(fld_doctorID.getText().length() == 0) {
+					Helper.showMsg("Please, select an ID.");
+				}else {
+					if(Helper.confirm("sure")) {
+						int selectID = Integer.parseInt(fld_doctorID.getText());
+						try {
+							boolean control = bashekim.deleteDoctor(selectID);
+							if(control) {
+								Helper.showMsg("success");
+								fld_doctorID.setText(null);
+								updateDoctorModel();
+							}
+						} catch (SQLException e1) {
+							e1.printStackTrace();
+						}
+					}
+				}
+			}
+		});
 		btn_delDoctor.setBounds(497, 309, 212, 23);
 		w_doctor.add(btn_delDoctor);
+		
+		JScrollPane w_scrollDoctor = new JScrollPane();
+		w_scrollDoctor.setBounds(10, 11, 477, 323);
+		w_doctor.add(w_scrollDoctor);
+		
+		table_doctor = new JTable(doctorModel);
+		w_scrollDoctor.setViewportView(table_doctor);
+		table_doctor.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
+			
+			@Override
+			public void valueChanged(ListSelectionEvent e) {
+				try {
+					fld_doctorID.setText(table_doctor.getValueAt(table_doctor.getSelectedRow(), 0).toString());
+				} catch (Exception ex) {
+				}
+			}
+		});
+		
+		table_doctor.getModel().addTableModelListener(new TableModelListener() {
+			
+			@Override
+			public void tableChanged(TableModelEvent e) {
+				if(e.getType() == TableModelEvent.UPDATE) {
+					int selectID = Integer.parseInt(table_doctor.getValueAt(table_doctor.getSelectedRow(), 0).toString());
+					String selectNumber = table_doctor.getValueAt(table_doctor.getSelectedRow(), 1).toString();
+					String selectPass = table_doctor.getValueAt(table_doctor.getSelectedRow(), 2).toString();
+					String selectName = table_doctor.getValueAt(table_doctor.getSelectedRow(), 3).toString();
+					
+					try {
+						boolean control = bashekim.updateDoctor(selectID, selectNumber, selectPass, selectName);
+						if(control) {
+							Helper.showMsg("success");
+						}
+					} catch (SQLException e1) {
+						e1.printStackTrace();
+					}
+				}
+			}
+		});
+	}
+	
+	public void updateDoctorModel() throws SQLException {
+		DefaultTableModel clearModel = (DefaultTableModel) table_doctor.getModel();
+		clearModel.setRowCount(0);
+		
+		for(int i=0; i < bashekim.getDoctorList().size(); i++) {
+			doctorData[0] = bashekim.getDoctorList().get(i).getId();
+			doctorData[1] = bashekim.getDoctorList().get(i).getName();
+			doctorData[2] = bashekim.getDoctorList().get(i).getNumber();
+			doctorData[3] = bashekim.getDoctorList().get(i).getPassword();
+			doctorModel.addRow(doctorData);
+		}
 	}
 }
